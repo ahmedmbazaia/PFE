@@ -1,0 +1,21 @@
+# Central Station — Python dependencies
+# Install: pip install -r requirements.txt
+
+# LoRa SX1278 HAT driver
+pySX127x>=0.3
+
+# SPI interface for MCP3008 ADC (FSO receiver)
+spidev>=3.5
+
+# RPi GPIO access
+RPi.GPIO>=0.7
+
+# RPi camera (picamera2 for Bullseye+)
+picamera2>=0.3
+
+# GPS serial communication
+pyserial>=3.5
+
+# JSON handling
+# (ArduinoJson equivalent — stdlib json is sufficient, but we list it for clarity)
+# json — built-in, no install needed

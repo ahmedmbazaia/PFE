@@ -83,12 +83,54 @@ def process_star_images():
     return df
 
 
+def process_single_image(image_path):
+    """Run detection on a single user-provided image."""
+    os.makedirs(OUTPUT_PLOT_DIR, exist_ok=True)
+    image_path = os.path.abspath(image_path)
+
+    if not os.path.isfile(image_path):
+        print(f"Error: file not found: {image_path}")
+        return
+
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        print(f"Error: could not read image: {image_path}")
+        return
+
+    fname = os.path.basename(image_path)
+    print(f"=== Star Detection: {fname} ===")
+    print(f"Image size: {img.shape[1]}x{img.shape[0]} px")
+
+    dets = detect_stars(img)
+    print(f"\nDetected {len(dets)} stars:\n")
+    print(f"  {'#':<4} {'x':>8} {'y':>8} {'brightness':>12}")
+    print(f"  {'-'*36}")
+    for i, d in enumerate(dets, 1):
+        print(f"  {i:<4} {d['x']:>8.1f} {d['y']:>8.1f} {d['peak_brightness']:>12.0f}")
+
+    # Save labeled output image
+    img_color = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    for i, d in enumerate(dets, 1):
+        cx, cy = int(round(d["x"])), int(round(d["y"]))
+        cv2.drawMarker(img_color, (cx, cy), (0, 0, 255), cv2.MARKER_CROSS, 15, 2)
+        cv2.putText(img_color, str(i), (cx + 8, cy - 8),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+
+    out_path = os.path.join(OUTPUT_PLOT_DIR, "labeled_sky.png")
+    cv2.imwrite(out_path, img_color)
+    print(f"\nLabeled image saved to: {os.path.abspath(out_path)}")
+
+
 def main():
-    print("=== Star Detection ===")
-    df = process_star_images()
-    if not df.empty:
-        print(f"\nSummary:\n{df.describe()}")
-    print("Detection plots saved to:", os.path.abspath(OUTPUT_PLOT_DIR))
+    import sys
+    if len(sys.argv) > 1:
+        process_single_image(sys.argv[1])
+    else:
+        print("=== Star Detection ===")
+        df = process_star_images()
+        if not df.empty:
+            print(f"\nSummary:\n{df.describe()}")
+        print("Detection plots saved to:", os.path.abspath(OUTPUT_PLOT_DIR))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # =============================================================
-#  LoRa Receiver — SX1278 HAT via SPI
-#  Listens for JSON telemetry from Telescope 1
+#  LoRa Receiver — SX1278 via Dragino LoRa GPS HAT v1.4
+#  Listens for JSON telemetry from Telescopes
 #  Also provides downlink transmit for ground station
 # =============================================================
 
@@ -26,9 +26,10 @@ def setup():
 
     try:
         from SX127x.LoRa import LoRa as LoRaDriver
-        from SX127x.board_config import BOARD
+        from dragino_board import BOARD
 
         BOARD.setup()
+        BOARD.reset()
 
         class LoRaReceiver(LoRaDriver):
             def __init__(self):

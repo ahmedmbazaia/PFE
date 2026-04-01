@@ -11,12 +11,15 @@ FSO_ENABLED    = True
 CAMERA_ENABLED = True
 GPS_ENABLED    = True
 
-# ─── LoRa SX1278 HAT (SPI + GPIO) ───────────────────────────
+# ─── LoRa SX1278 — Dragino LoRa GPS HAT v1.4 ────────────────
 LORA_SPI_BUS    = 0
-LORA_SPI_CS     = 0       # CE0
-LORA_FREQUENCY  = 433e6   # 433 MHz — must match T1
-LORA_RST_PIN    = 25      # BCM GPIO 25
-LORA_DIO0_PIN   = 24      # BCM GPIO 24 — interrupt on RX done
+LORA_SPI_CS     = 0       # CE0 = GPIO8
+LORA_FREQUENCY  = 433000000  # 433 MHz — must match telescopes
+LORA_RST_PIN    = 11      # BCM GPIO 11
+LORA_DIO0_PIN   = 4       # BCM GPIO 4  — RxDone / TxDone interrupt
+LORA_DIO1_PIN   = 23      # BCM GPIO 23
+LORA_DIO2_PIN   = 24      # BCM GPIO 24
+LORA_DIO3_PIN   = 25      # BCM GPIO 25
 LORA_TX_POWER   = 17      # dBm for downlink
 
 # ─── FSO receiver (BPW34 via ADC — MCP3008 on SPI1) ─────────

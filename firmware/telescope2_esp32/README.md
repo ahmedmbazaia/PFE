@@ -19,7 +19,11 @@ PlatformIO project for Telescope 2 node. Standard ESP32 with GPS and FSO laser t
 #define MOTOR_ENABLED  false
 #define FSO_ENABLED    true
 #define GPS_ENABLED    true
+#define LORA_ENABLED   true
+#define TEST_LORA_ONLY true
 ```
+
+With `TEST_LORA_ONLY` enabled, the TTGO sends a simple LoRa JSON test packet every 2 seconds so you can verify reception on the Raspberry Pi LoRa HAT without depending on sensor data.
 
 ## Loop Cycle (every 2s)
 
@@ -46,6 +50,20 @@ PlatformIO project for Telescope 2 node. Standard ESP32 with GPS and FSO laser t
   "lat": 0.0,
   "lon": 0.0,
   "altitude": 0.0
+}
+```
+
+## Test LoRa Payload
+
+When `TEST_LORA_ONLY` is enabled, the board sends:
+
+```json
+{
+  "node": "TTGO",
+  "counter": 1,
+  "message": "hello from ttgo",
+  "timestamp_ms": 2000,
+  "lora_freq": 433
 }
 ```
 

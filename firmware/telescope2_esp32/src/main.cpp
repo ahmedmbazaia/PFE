@@ -17,6 +17,7 @@
 #define FSO_ENABLED    true
 #define GPS_ENABLED    true
 #define LORA_ENABLED   true
+#define TEST_LORA_ONLY true
 #define LORA_FREQ      433E6
 
 // ─── Pin definitions ────────────────────────────────────────
@@ -82,11 +83,14 @@ void setup() {
     // I2C bus
     Wire.begin(I2C_SDA, I2C_SCL);
 
-    // Stepper pins (configured even if motor disabled)
-    pinMode(STEPPER_STEP_PIN,   OUTPUT);
-    pinMode(STEPPER_DIR_PIN,    OUTPUT);
+    #if MOTOR_ENABLED
+    // Only configure stepper pins when the motor is actually enabled.
+    // On the TTGO LoRa32 board, some of these GPIOs overlap with LoRa pins.
+    pinMode(STEPPER_STEP_PIN, OUTPUT);
+    pinMode(STEPPER_DIR_PIN, OUTPUT);
     pinMode(STEPPER_ENABLE_PIN, OUTPUT);
     digitalWrite(STEPPER_ENABLE_PIN, HIGH);  // HIGH = disabled on DRV8825
+    #endif
 
     // Photodiode analog input
     analogReadResolution(12);  // 0–4095
@@ -106,6 +110,7 @@ void setup() {
 // =============================================================
 void loop() {
     static unsigned long lastRun = 0;
+    static uint32_t packetCounter = 0;
     unsigned long now = millis();
 
     // Feed GPS parser continuously between cycles
@@ -117,6 +122,28 @@ void loop() {
 
     if (now - lastRun < LOOP_INTERVAL_MS) return;
     lastRun = now;
+    packetCounter++;
+
+    #if TEST_LORA_ONLY
+    JsonDocument doc;
+    doc["node"] = "TTGO";
+    doc["counter"] = packetCounter;
+    doc["message"] = "hello from ttgo";
+    doc["timestamp_ms"] = now;
+    doc["lora_freq"] = 433;
+
+    String json;
+    serializeJson(doc, json);
+
+    Serial.println("[TEST] Sending LoRa packet:");
+    Serial.println(json);
+
+    #if LORA_ENABLED
+    loraTransmit(json);
+    #endif
+
+    return;
+    #endif
 
     // 1. Read IMU
     float pitch = 0, roll = 0, yaw = 0;

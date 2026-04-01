@@ -5,6 +5,8 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <SPI.h>
+#include <LoRa.h>
 #include <MPU9250.h>
 #include <VL53L0X.h>
 #include <TinyGPSPlus.h>
@@ -14,6 +16,8 @@
 #define MOTOR_ENABLED  false
 #define FSO_ENABLED    true
 #define GPS_ENABLED    true
+#define LORA_ENABLED   true
+#define LORA_FREQ      433E6
 
 // ─── Pin definitions ────────────────────────────────────────
 
@@ -51,12 +55,15 @@ HardwareSerial gpsSerial(2);  // UART2
 bool imuReady  = false;
 bool tofReady  = false;
 bool gpsReady  = false;
+bool loraReady = false;
 
 // ─── Forward declarations ───────────────────────────────────
 void setupIMU();
 void setupTOF();
 void setupGPS();
 void setupFSO();
+void setupLoRa();
+void loraTransmit(const String &data);
 void readIMU(float &pitch, float &roll, float &yaw);
 int  readBPW34();
 void readTOF(int &skyDist, int &baselineDist);
@@ -89,6 +96,7 @@ void setup() {
     setupTOF();
     setupGPS();
     setupFSO();
+    setupLoRa();
 
     Serial.println("===== Setup complete =====\n");
 }
@@ -148,6 +156,11 @@ void loop() {
     // 6. Transmit via FSO laser (OOK)
     #if FSO_ENABLED
     fsoTransmit(json);
+    #endif
+
+    // 7. Transmit via LoRa (SX1278)
+    #if LORA_ENABLED
+    loraTransmit(json);
     #endif
 }
 
@@ -343,5 +356,45 @@ void fsoTransmit(const String &data) {
     fsoSendByte(checksum);
 
     Serial.println("[FSO] Transmission complete");
+    #endif
+}
+
+// =============================================================
+//  LoRa — SX1278 on TTGO LoRa32 V1 at 433 MHz
+//  Pins defined via build flags in platformio.ini
+// =============================================================
+void setupLoRa() {
+    #if LORA_ENABLED
+    Serial.print("[LoRa] Initializing SX1278 at 433 MHz... ");
+
+    SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_SS);
+    LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
+
+    if (!LoRa.begin(LORA_FREQ)) {
+        Serial.println("FAILED");
+        loraReady = false;
+    } else {
+        LoRa.setSpreadingFactor(7);
+        LoRa.setSignalBandwidth(125E3);
+        LoRa.setCodingRate4(5);
+        LoRa.setTxPower(17);
+        Serial.println("OK");
+        loraReady = true;
+    }
+    #else
+    Serial.println("[LoRa] Disabled");
+    loraReady = false;
+    #endif
+}
+
+void loraTransmit(const String &data) {
+    #if LORA_ENABLED
+    if (!loraReady) return;
+
+    Serial.printf("[LoRa] Sending %d bytes\n", data.length());
+    LoRa.beginPacket();
+    LoRa.print(data);
+    LoRa.endPacket();
+    Serial.println("[LoRa] Packet sent");
     #endif
 }

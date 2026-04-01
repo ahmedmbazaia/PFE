@@ -1,6 +1,9 @@
 # Central Station — Python dependencies
 # Install: pip install -r requirements.txt
 
+# Flask dashboard
+Flask>=3.0
+
 # LoRa SX1278 HAT driver
 pySX127x>=0.3
 

@@ -65,6 +65,14 @@ class BOARD:
             BOARD.add_event_detect(BOARD.DIO0, BOARD._dio0_callback)
 
     @staticmethod
+    def SpiDev():
+        """Return a configured SpiDev handle (called by pySX127x at import time)."""
+        spi = spidev.SpiDev()
+        spi.open(BOARD.SPI_BUS, BOARD.SPI_CS)
+        spi.max_speed_hz = 5000000
+        return spi
+
+    @staticmethod
     def teardown():
         """Release GPIO and SPI resources."""
         if BOARD.spi is not None:

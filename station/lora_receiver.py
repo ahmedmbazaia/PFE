@@ -6,9 +6,17 @@
 
 import json
 import logging
+import os
+import sys
 import time
 
+# Ensure station/ is on the path so dragino_board can be found
+sys.path.insert(0, os.path.dirname(__file__))
+
 import config
+import dragino_board
+
+BOARD = dragino_board.BOARD
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +34,6 @@ def setup():
 
     try:
         from SX127x.LoRa import LoRa as LoRaDriver
-        from dragino_board import BOARD
 
         BOARD.setup()
         BOARD.reset()

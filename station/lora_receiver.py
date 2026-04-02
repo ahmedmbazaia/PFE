@@ -33,6 +33,9 @@ def setup():
         return False
 
     try:
+        import SX127x.board_config
+        SX127x.board_config.BOARD = BOARD
+
         from SX127x.LoRa import LoRa as LoRaDriver
 
         BOARD.setup()

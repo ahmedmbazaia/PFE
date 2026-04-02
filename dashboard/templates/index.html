@@ -9,285 +9,167 @@
 
         body {
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: #0b0f1a;
-            color: #e0e6f0;
+            background: #0a0e1a;
+            color: #d8dfe9;
             min-height: 100vh;
-            background-image:
-                radial-gradient(ellipse at 20% 0%, rgba(56, 120, 255, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 100%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
         }
 
-        header {
-            padding: 32px 24px 0;
-            max-width: 960px;
+        .container {
+            max-width: 720px;
             margin: 0 auto;
+            padding: 36px 20px 60px;
         }
 
-        header h1 {
-            font-size: 1.75rem;
+        h1 {
+            font-size: 1.6rem;
             font-weight: 700;
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #60a5fa, #a78bfa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        header p {
-            color: #7a8ba8;
-            margin-top: 4px;
-            font-size: 0.9rem;
-        }
-
-        .grid {
-            max-width: 960px;
-            margin: 24px auto;
-            padding: 0 24px 48px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-
-        .card {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.07);
-            border-radius: 14px;
-            padding: 20px;
-            backdrop-filter: blur(12px);
-            transition: border-color 0.3s;
-        }
-
-        .card:hover {
-            border-color: rgba(96, 165, 250, 0.25);
-        }
-
-        .card.wide {
-            grid-column: 1 / -1;
-        }
-
-        .card-label {
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            color: #5b6b85;
-            margin-bottom: 12px;
-        }
-
-        .metric {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-        }
-
-        .metric:last-child { border-bottom: none; }
-
-        .metric-name {
-            font-size: 0.85rem;
-            color: #8a9bb5;
-        }
-
-        .metric-value {
-            font-size: 1.1rem;
-            font-weight: 600;
-            font-variant-numeric: tabular-nums;
-            color: #e0e6f0;
-        }
-
-        .metric-value.accent { color: #60a5fa; }
-        .metric-value.warn   { color: #fbbf24; }
-        .metric-value.good   { color: #34d399; }
-
-        /* Status badge */
-        .status-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 12px;
+            color: #60a5fa;
             margin-bottom: 4px;
         }
 
-        .badge {
-            display: inline-flex;
+        .sub { color: #5a6a82; font-size: 0.85rem; margin-bottom: 28px; }
+
+        /* Status bar */
+        .status-row {
+            display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 14px;
-            border-radius: 999px;
-            font-size: 0.8rem;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #fbbf24;
+            flex-shrink: 0;
+        }
+
+        .dot.live { background: #34d399; animation: blink 2s infinite; }
+        .dot.err  { background: #f87171; }
+
+        @keyframes blink {
+            0%,100% { opacity: 1; } 50% { opacity: 0.35; }
+        }
+
+        .status-text { font-size: 0.82rem; color: #7a8ba8; }
+
+        /* Cards */
+        .card {
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 14px;
+        }
+
+        .card-title {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.1px;
+            color: #4b5c75;
+            margin-bottom: 14px;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 7px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .row:last-child { border-bottom: none; }
+
+        .label { font-size: 0.84rem; color: #7a8ba8; }
+
+        .val {
+            font-size: 1.05rem;
             font-weight: 600;
+            font-variant-numeric: tabular-nums;
         }
 
-        .badge.live {
-            background: rgba(52, 211, 153, 0.12);
-            color: #34d399;
-        }
-
-        .badge.offline {
-            background: rgba(251, 191, 36, 0.12);
-            color: #fbbf24;
-        }
-
-        .badge.error {
-            background: rgba(248, 113, 113, 0.12);
-            color: #f87171;
-        }
-
-        .pulse {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: currentColor;
-            animation: pulse-anim 2s infinite;
-        }
-
-        @keyframes pulse-anim {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-
-        .timestamp-text {
-            font-size: 0.8rem;
-            color: #5b6b85;
-        }
-
-        .empty-msg {
-            text-align: center;
-            padding: 48px 20px;
-            color: #5b6b85;
-            font-size: 0.95rem;
-            grid-column: 1 / -1;
-        }
-
-        @media (max-width: 600px) {
-            .grid { grid-template-columns: 1fr; }
-            header h1 { font-size: 1.4rem; }
-        }
+        .val.blue   { color: #60a5fa; }
+        .val.yellow { color: #fbbf24; }
+        .val.green  { color: #34d399; }
+        .val.dim    { color: #5a6a82; }
     </style>
 </head>
 <body>
-    <header>
+    <div class="container">
         <h1>Optical Interferometry Telemetry</h1>
-        <p>Live data from Telescope 2 — auto-refreshes every 2 seconds</p>
-    </header>
+        <p class="sub">Live data from Telescope 2 &mdash; refreshes every 2 s</p>
 
-    <div class="grid" id="dashboard">
-        <div class="empty-msg">Connecting to station...</div>
+        <div class="status-row">
+            <span class="dot" id="dot"></span>
+            <span class="status-text" id="status-text">Connecting...</span>
+        </div>
+
+        <div id="cards">
+            <div class="card">
+                <div class="card-title">Waiting for data</div>
+                <div class="row"><span class="label">No telemetry received yet.</span></div>
+            </div>
+        </div>
     </div>
 
     <script>
-        function fmt(val, decimals = 1) {
-            if (val === null || val === undefined || val === "") return "\u2014";
-            const n = Number(val);
-            return isNaN(n) ? String(val) : n.toFixed(decimals);
-        }
-
-        function renderDashboard(payload) {
-            const el = document.getElementById("dashboard");
-
-            if (payload.status !== "ok" || !payload.data) {
-                el.innerHTML = `
-                    <div class="card wide">
-                        <div class="status-bar">
-                            <span class="badge offline"><span class="pulse"></span> Waiting for data</span>
-                        </div>
-                    </div>
-                    <div class="empty-msg">No telemetry data yet. Make sure the station is running and logging to mission_log.csv.</div>
-                `;
-                return;
-            }
-
-            const d = payload.data;
-
-            el.innerHTML = `
-                <div class="card wide">
-                    <div class="status-bar">
-                        <span class="badge live"><span class="pulse"></span> Connected</span>
-                        <span class="timestamp-text">Station: ${d.timestamp || "\u2014"}</span>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-label">Orientation (T2)</div>
-                    <div class="metric">
-                        <span class="metric-name">Pitch</span>
-                        <span class="metric-value accent">${fmt(d.t2_pitch)}&deg;</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-name">Roll</span>
-                        <span class="metric-value accent">${fmt(d.t2_roll)}&deg;</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-name">Yaw</span>
-                        <span class="metric-value accent">${fmt(d.t2_yaw)}&deg;</span>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-label">Sensors (T2)</div>
-                    <div class="metric">
-                        <span class="metric-name">Light Intensity</span>
-                        <span class="metric-value warn">${fmt(d.t2_light_intensity, 0)}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-name">Sky Distance</span>
-                        <span class="metric-value">${fmt(d.t2_sky_distance_mm, 0)} mm</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-name">Baseline Distance</span>
-                        <span class="metric-value">${fmt(d.t2_baseline_distance_mm, 0)} mm</span>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-label">GPS (T2)</div>
-                    <div class="metric">
-                        <span class="metric-name">Latitude</span>
-                        <span class="metric-value good">${fmt(d.t2_lat, 6)}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-name">Longitude</span>
-                        <span class="metric-value good">${fmt(d.t2_lon, 6)}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-name">Altitude</span>
-                        <span class="metric-value">${fmt(d.t2_altitude, 1)} m</span>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-label">Station GPS</div>
-                    <div class="metric">
-                        <span class="metric-name">Latitude</span>
-                        <span class="metric-value good">${fmt(d.gps_lat, 6)}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-name">Longitude</span>
-                        <span class="metric-value good">${fmt(d.gps_lon, 6)}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-name">Altitude</span>
-                        <span class="metric-value">${fmt(d.gps_altitude, 1)} m</span>
-                    </div>
-                </div>
-            `;
+        function f(v, d) {
+            if (v === null || v === undefined || v === "") return "\u2014";
+            var n = Number(v);
+            return isNaN(n) ? String(v) : n.toFixed(d);
         }
 
         async function refresh() {
+            var dot = document.getElementById("dot");
+            var stxt = document.getElementById("status-text");
+            var cards = document.getElementById("cards");
+
             try {
-                const res = await fetch("/api/latest");
-                const payload = await res.json();
-                renderDashboard(payload);
+                var res = await fetch("/api/latest");
+                var p = await res.json();
+
+                if (p.status !== "ok" || !p.data || Object.keys(p.data).length === 0) {
+                    dot.className = "dot";
+                    stxt.textContent = "Waiting for data...";
+                    cards.innerHTML =
+                        '<div class="card">' +
+                        '<div class="card-title">No data</div>' +
+                        '<div class="row"><span class="label">Station is not logging yet.</span></div>' +
+                        '</div>';
+                    return;
+                }
+
+                var d = p.data;
+                dot.className = "dot live";
+                stxt.textContent = "Live \u2014 RPi: " + (d.rpi_timestamp || d.timestamp || "\u2014");
+
+                cards.innerHTML =
+                    '<div class="card">' +
+                        '<div class="card-title">T2 Orientation</div>' +
+                        '<div class="row"><span class="label">Pitch</span><span class="val blue">' + f(d.t2_pitch,2) + '&deg;</span></div>' +
+                        '<div class="row"><span class="label">Roll</span><span class="val blue">' + f(d.t2_roll,2) + '&deg;</span></div>' +
+                        '<div class="row"><span class="label">Yaw</span><span class="val blue">' + f(d.t2_yaw,2) + '&deg;</span></div>' +
+                    '</div>' +
+
+                    '<div class="card">' +
+                        '<div class="card-title">T2 Sensors</div>' +
+                        '<div class="row"><span class="label">Light Intensity</span><span class="val yellow">' + f(d.t2_light_intensity,0) + '</span></div>' +
+                    '</div>' +
+
+                    '<div class="card">' +
+                        '<div class="card-title">Timestamps</div>' +
+                        '<div class="row"><span class="label">T2 Timestamp</span><span class="val dim">' + (d.t2_timestamp || "\u2014") + '</span></div>' +
+                        '<div class="row"><span class="label">RPi Timestamp</span><span class="val dim">' + (d.rpi_timestamp || d.timestamp || "\u2014") + '</span></div>' +
+                    '</div>';
+
             } catch (err) {
-                document.getElementById("dashboard").innerHTML = `
-                    <div class="card wide">
-                        <div class="status-bar">
-                            <span class="badge error"><span class="pulse"></span> Connection error</span>
-                        </div>
-                    </div>
-                    <div class="empty-msg">${err}</div>
-                `;
+                dot.className = "dot err";
+                stxt.textContent = "Connection error";
+                cards.innerHTML =
+                    '<div class="card">' +
+                    '<div class="card-title">Error</div>' +
+                    '<div class="row"><span class="label">' + err + '</span></div>' +
+                    '</div>';
             }
         }
 

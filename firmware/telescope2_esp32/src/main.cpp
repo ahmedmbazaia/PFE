@@ -164,14 +164,14 @@ void loop() {
 
     Serial.println(json);
 
-    // 6. Transmit via FSO laser (OOK)
-    #if FSO_ENABLED
-    fsoTransmit(json);
-    #endif
-
-    // 7. Send via WiFi HTTP POST
+    // 6. Send via WiFi HTTP POST (before FSO to avoid blocking)
     #if WIFI_ENABLED
     httpPost(json);
+    #endif
+
+    // 7. Transmit via FSO laser (OOK)
+    #if FSO_ENABLED
+    fsoTransmit(json);
     #endif
 }
 
@@ -415,6 +415,7 @@ void httpPost(const String &json) {
 
     HTTPClient http;
     http.begin(SERVER_URL);
+    http.setTimeout(15000);
     http.addHeader("Content-Type", "application/json");
 
     int code = http.POST(json);

@@ -70,7 +70,12 @@ class BOARD:
     @staticmethod
     def add_event_detect(dio_pin, callback):
         """Register a rising-edge interrupt on a DIO pin."""
-        GPIO.add_event_detect(dio_pin, GPIO.RISING, callback=callback)
+        try:
+            GPIO.add_event_detect(dio_pin, GPIO.RISING, callback=callback)
+        except RuntimeError:
+            # Edge detection already active on this pin — remove and re-add
+            GPIO.remove_event_detect(dio_pin)
+            GPIO.add_event_detect(dio_pin, GPIO.RISING, callback=callback)
 
     @staticmethod
     def add_events(cb_dio0=None, cb_dio1=None, cb_dio2=None, cb_dio3=None):

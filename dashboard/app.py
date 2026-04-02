@@ -6,7 +6,7 @@ from flask import Flask, jsonify, render_template
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
-CSV_PATH = os.path.join(PROJECT_ROOT, "data", "logs", "mission_log.csv")
+CSV_PATH = os.path.join(PROJECT_ROOT, "station", "data", "logs", "mission_log.csv")
 
 logging.basicConfig(
     level=logging.INFO,

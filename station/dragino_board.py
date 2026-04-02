@@ -100,7 +100,7 @@ class BOARD:
             GPIO.add_event_detect(dio_pin, GPIO.RISING, callback=callback)
 
     @staticmethod
-    def add_events(cb_dio0=None, cb_dio1=None, cb_dio2=None, cb_dio3=None):
+    def add_events(cb_dio0=None, cb_dio1=None, cb_dio2=None, cb_dio3=None, cb_dio4=None, cb_dio5=None):
         """Register callbacks for all DIO interrupt lines."""
         if cb_dio0:
             BOARD.add_event_detect(BOARD.DIO0, cb_dio0)
@@ -110,6 +110,7 @@ class BOARD:
             BOARD.add_event_detect(BOARD.DIO2, cb_dio2)
         if cb_dio3:
             BOARD.add_event_detect(BOARD.DIO3, cb_dio3)
+        # DIO4 and DIO5 not wired on Dragino HAT — ignore
 
     @staticmethod
     def led_on(value=1):

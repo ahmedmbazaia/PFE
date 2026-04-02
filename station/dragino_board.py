@@ -29,26 +29,40 @@ class BOARD:
     # SPI handle
     spi = None
 
+    # Callback reference set by add_events(), used in setup()
+    _dio0_callback = None
+
     @staticmethod
     def setup():
-        """Configure GPIO and SPI for the Dragino HAT."""
+        """Configure GPIO and SPI for the Dragino HAT.
+
+        Order matters:
+          1. setmode  2. setwarnings  3. DIO inputs
+          4. RST output  5. SPI  6. edge detection (if callback set)
+        """
+        # 1. BCM pin numbering
         GPIO.setmode(GPIO.BCM)
+        # 2. Suppress "channel already in use" warnings
         GPIO.setwarnings(False)
 
-        # DIO pins as inputs (directly from SX1278)
+        # 3-6. DIO pins as inputs
         GPIO.setup(BOARD.DIO0, GPIO.IN)
         GPIO.setup(BOARD.DIO1, GPIO.IN)
         GPIO.setup(BOARD.DIO2, GPIO.IN)
         GPIO.setup(BOARD.DIO3, GPIO.IN)
 
-        # Reset pin as output
+        # 7. Reset pin as output
         GPIO.setup(BOARD.RST, GPIO.OUT)
         GPIO.output(BOARD.RST, GPIO.HIGH)
 
-        # SPI bus
+        # 8. SPI bus
         BOARD.spi = spidev.SpiDev()
         BOARD.spi.open(BOARD.SPI_BUS, BOARD.SPI_CS)
         BOARD.spi.max_speed_hz = 5000000
+
+        # 9. Edge detection on DIO0 (only after all GPIO.setup calls)
+        if BOARD._dio0_callback is not None:
+            BOARD.add_event_detect(BOARD.DIO0, BOARD._dio0_callback)
 
     @staticmethod
     def teardown():

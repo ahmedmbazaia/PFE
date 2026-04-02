@@ -1,12 +1,13 @@
 // =============================================================
-//  Telescope 2 — ESP32 NodeMCU
+//  Telescope 2 — ESP32 (TTGO LoRa32 V1)
 //  Sensors: MPU9250, BPW34, VL53L0X, GPS, FSO laser TX
+//  Telemetry: WiFi HTTP POST + FSO
 // =============================================================
 
 #include <Arduino.h>
 #include <Wire.h>
-#include <SPI.h>
-#include <LoRa.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
 #include <MPU9250.h>
 #include <VL53L0X.h>
 #include <TinyGPSPlus.h>
@@ -16,9 +17,12 @@
 #define MOTOR_ENABLED  false
 #define FSO_ENABLED    true
 #define GPS_ENABLED    true
-#define LORA_ENABLED   true
-#define TEST_LORA_ONLY true
-#define LORA_FREQ      433E6
+#define WIFI_ENABLED   true
+
+// ─── WiFi + server ──────────────────────────────────────────
+#define WIFI_SSID      "TT_F590"
+#define WIFI_PASSWORD  "upi492l8ok"
+#define SERVER_URL     "http://192.168.1.18:5000/telemetry"
 
 // ─── Pin definitions ────────────────────────────────────────
 
@@ -56,15 +60,15 @@ HardwareSerial gpsSerial(2);  // UART2
 bool imuReady  = false;
 bool tofReady  = false;
 bool gpsReady  = false;
-bool loraReady = false;
+bool wifiReady = false;
 
 // ─── Forward declarations ───────────────────────────────────
 void setupIMU();
 void setupTOF();
 void setupGPS();
 void setupFSO();
-void setupLoRa();
-void loraTransmit(const String &data);
+void setupWiFi();
+void httpPost(const String &json);
 void readIMU(float &pitch, float &roll, float &yaw);
 int  readBPW34();
 void readTOF(int &skyDist, int &baselineDist);
@@ -100,7 +104,7 @@ void setup() {
     setupTOF();
     setupGPS();
     setupFSO();
-    setupLoRa();
+    setupWiFi();
 
     Serial.println("===== Setup complete =====\n");
 }
@@ -124,28 +128,6 @@ void loop() {
     lastRun = now;
     packetCounter++;
 
-    JsonDocument doc;
-    String json;
-
-    #if TEST_LORA_ONLY
-    doc["node"] = "TTGO";
-    doc["counter"] = packetCounter;
-    doc["message"] = "hello from ttgo";
-    doc["timestamp_ms"] = now;
-    doc["lora_freq"] = 433;
-
-    serializeJson(doc, json);
-
-    Serial.println("[TEST] Sending LoRa packet:");
-    Serial.println(json);
-
-    #if LORA_ENABLED
-    loraTransmit(json);
-    #endif
-
-    return;
-    #endif
-
     // 1. Read IMU
     float pitch = 0, roll = 0, yaw = 0;
     readIMU(pitch, roll, yaw);
@@ -162,8 +144,9 @@ void loop() {
     readGPS(lat, lon, altitude);
 
     // 5. Build JSON payload
-    doc.clear();
+    JsonDocument doc;
     doc["node"]                 = "T2";
+    doc["counter"]              = packetCounter;
     doc["timestamp"]            = millis();
     doc["pitch"]                = pitch;
     doc["roll"]                 = roll;
@@ -176,6 +159,7 @@ void loop() {
     doc["lon"]                  = lon;
     doc["altitude"]             = altitude;
 
+    String json;
     serializeJson(doc, json);
 
     Serial.println(json);
@@ -185,9 +169,9 @@ void loop() {
     fsoTransmit(json);
     #endif
 
-    // 7. Transmit via LoRa (SX1278)
-    #if LORA_ENABLED
-    loraTransmit(json);
+    // 7. Send via WiFi HTTP POST
+    #if WIFI_ENABLED
+    httpPost(json);
     #endif
 }
 
@@ -387,41 +371,58 @@ void fsoTransmit(const String &data) {
 }
 
 // =============================================================
-//  LoRa — SX1278 on TTGO LoRa32 V1 at 433 MHz
-//  Pins defined via build flags in platformio.ini
+//  WiFi — HTTP POST to central station
 // =============================================================
-void setupLoRa() {
-    #if LORA_ENABLED
-    Serial.print("[LoRa] Initializing SX1278 at 433 MHz... ");
+void setupWiFi() {
+    #if WIFI_ENABLED
+    Serial.printf("[WiFi] Connecting to %s", WIFI_SSID);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-    SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_SS);
-    LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
+    int retries = 0;
+    while (WiFi.status() != WL_CONNECTED && retries < 20) {
+        delay(500);
+        Serial.print(".");
+        retries++;
+    }
 
-    if (!LoRa.begin(LORA_FREQ)) {
-        Serial.println("FAILED");
-        loraReady = false;
+    if (WiFi.status() == WL_CONNECTED) {
+        wifiReady = true;
+        Serial.println(" OK");
+        Serial.print("[WiFi] IP: ");
+        Serial.println(WiFi.localIP());
     } else {
-        LoRa.setSpreadingFactor(7);
-        LoRa.setSignalBandwidth(125E3);
-        LoRa.setCodingRate4(5);
-        LoRa.setTxPower(17);
-        Serial.println("OK");
-        loraReady = true;
+        wifiReady = false;
+        Serial.println(" FAILED");
     }
     #else
-    Serial.println("[LoRa] Disabled");
-    loraReady = false;
+    Serial.println("[WiFi] Disabled");
+    wifiReady = false;
     #endif
 }
 
-void loraTransmit(const String &data) {
-    #if LORA_ENABLED
-    if (!loraReady) return;
+void httpPost(const String &json) {
+    #if WIFI_ENABLED
+    if (!wifiReady) {
+        // Try to reconnect
+        if (WiFi.status() != WL_CONNECTED) {
+            Serial.println("[WiFi] Reconnecting...");
+            WiFi.reconnect();
+            delay(1000);
+            if (WiFi.status() != WL_CONNECTED) return;
+            wifiReady = true;
+        }
+    }
 
-    Serial.printf("[LoRa] Sending %d bytes\n", data.length());
-    LoRa.beginPacket();
-    LoRa.print(data);
-    LoRa.endPacket();
-    Serial.println("[LoRa] Packet sent");
+    HTTPClient http;
+    http.begin(SERVER_URL);
+    http.addHeader("Content-Type", "application/json");
+
+    int code = http.POST(json);
+    if (code > 0) {
+        Serial.printf("[HTTP] POST %d (%d bytes)\n", code, json.length());
+    } else {
+        Serial.printf("[HTTP] POST failed: %s\n", http.errorToString(code).c_str());
+    }
+    http.end();
     #endif
 }

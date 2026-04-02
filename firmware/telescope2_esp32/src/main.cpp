@@ -124,15 +124,16 @@ void loop() {
     lastRun = now;
     packetCounter++;
 
-    #if TEST_LORA_ONLY
     JsonDocument doc;
+    String json;
+
+    #if TEST_LORA_ONLY
     doc["node"] = "TTGO";
     doc["counter"] = packetCounter;
     doc["message"] = "hello from ttgo";
     doc["timestamp_ms"] = now;
     doc["lora_freq"] = 433;
 
-    String json;
     serializeJson(doc, json);
 
     Serial.println("[TEST] Sending LoRa packet:");
@@ -161,7 +162,7 @@ void loop() {
     readGPS(lat, lon, altitude);
 
     // 5. Build JSON payload
-    JsonDocument doc;
+    doc.clear();
     doc["node"]                 = "T2";
     doc["timestamp"]            = millis();
     doc["pitch"]                = pitch;
@@ -175,7 +176,6 @@ void loop() {
     doc["lon"]                  = lon;
     doc["altitude"]             = altitude;
 
-    String json;
     serializeJson(doc, json);
 
     Serial.println(json);

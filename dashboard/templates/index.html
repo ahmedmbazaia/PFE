@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>LoRa Telemetry Dashboard</title>
+    <title>Telemetry Dashboard</title>
     <style>
         :root {
             --bg: #f4efe6;
@@ -124,8 +124,8 @@
 <body>
     <main>
         <section class="hero">
-            <h1>LoRa Sensor Dashboard</h1>
-            <p class="subtitle">This page listens to your TTGO LoRa sender through the Raspberry Pi SX1278 HAT and refreshes automatically when a new telemetry packet arrives.</p>
+            <h1>Telemetry Dashboard</h1>
+            <p class="subtitle">Live view of the most recent telemetry from mission_log.csv. Auto-refreshes every 2 seconds.</p>
         </section>
 
         <section class="panel">
@@ -177,13 +177,13 @@
                 const content = document.getElementById("content");
 
                 if (payload.status === "ok") {
-                    status.innerHTML = '<span class="dot"></span><span>Receiving LoRa data</span>';
+                    status.innerHTML = '<span class="dot"></span><span>Receiving data</span>';
                     meta.textContent = `Last packet received at ${payload.received_at}`;
                     content.innerHTML = renderTable(payload.data);
                 } else {
                     status.innerHTML = '<span class="dot"></span><span>Waiting for data</span>';
                     meta.textContent = "No packet received yet.";
-                    content.innerHTML = '<p class="empty">Power on the TTGO sender and make sure the LoRa frequency matches the HAT receiver.</p>';
+                    content.innerHTML = '<p class="empty">No telemetry data yet. Make sure mission_log.csv is being written by the station.</p>';
                 }
             } catch (error) {
                 document.getElementById("status").innerHTML = '<span class="dot"></span><span>Dashboard error</span>';

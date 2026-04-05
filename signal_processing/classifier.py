@@ -1,141 +1,185 @@
 """
 Image classifier module.
-Trains a Random Forest classifier to categorize images as 'star' or 'fringe'
-based on extracted features. Saves the trained model as model.pkl.
+Trains a Random Forest on 4 astrophysical source classes using synthetic
+feature vectors. Features match those extracted by detect.py so the model
+can be applied directly to detection results.
 """
 
 import os
-import glob
 import pickle
 import numpy as np
-import cv2
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report
 import matplotlib.pyplot as plt
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
-IMAGES_DIR = os.path.join(DATA_DIR, "images")
 MODEL_PATH = os.path.join(DATA_DIR, "model.pkl")
 OUTPUT_PLOT_DIR = os.path.join(DATA_DIR, "plots")
+REPORT_PATH = os.path.join(OUTPUT_PLOT_DIR, "classification_report.txt")
+
+FEATURE_COLS = ["area", "peak_brightness", "circularity", "compactness", "neighbor_distance"]
+
+CLASS_NAMES = [
+    "Étoile ponctuelle",
+    "Système binaire",
+    "Nébuleuse étendue",
+    "Objet compact",
+]
 
 
-def extract_features(image):
-    """Extract numerical features from a grayscale image for classification."""
-    img = image.astype(np.float64)
+def generate_synthetic_features(n_per_class=300, seed=42):
+    """
+    Generate synthetic feature vectors for each of the 4 source classes.
+    Distributions are calibrated to match real detection feature profiles.
 
-    # Intensity statistics
-    mean_val = np.mean(img)
-    std_val = np.std(img)
-    skew = float(pd.Series(img.ravel()).skew())
-    kurtosis = float(pd.Series(img.ravel()).kurtosis())
-
-    # FFT features - dominant frequency and power
-    fft2 = np.fft.fft2(img)
-    fft_mag = np.abs(np.fft.fftshift(fft2))
-    cy, cx = fft_mag.shape[0] // 2, fft_mag.shape[1] // 2
-    fft_mag[cy-2:cy+3, cx-2:cx+3] = 0  # remove DC
-    total_power = np.sum(fft_mag)
-    peak_power = np.max(fft_mag)
-    fft_ratio = peak_power / (total_power + 1e-10)
-
-    # Texture: Laplacian variance (sharpness)
-    laplacian_var = cv2.Laplacian(image, cv2.CV_64F).var()
-
-    # Number of bright spots (proxy for star count)
-    _, binary = cv2.threshold(image, 100, 255, cv2.THRESH_BINARY)
-    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    n_blobs = len(contours)
-
-    # Horizontal vs vertical gradient energy
-    grad_x = cv2.Sobel(image, cv2.CV_64F, 1, 0, ksize=3)
-    grad_y = cv2.Sobel(image, cv2.CV_64F, 0, 1, ksize=3)
-    grad_ratio = np.sum(np.abs(grad_x)) / (np.sum(np.abs(grad_y)) + 1e-10)
-
-    return {
-        "mean": mean_val,
-        "std": std_val,
-        "skew": skew,
-        "kurtosis": kurtosis,
-        "fft_peak_ratio": fft_ratio,
-        "laplacian_var": laplacian_var,
-        "n_blobs": n_blobs,
-        "grad_ratio": grad_ratio,
-    }
-
-
-def load_dataset():
-    """Load images and extract features with labels."""
+    Features:
+      area             — contour area in px²
+      peak_brightness  — max pixel intensity in source ROI (0–255)
+      circularity      — 4π·area/perimeter² (1.0 = perfect circle)
+      compactness      — peak_brightness / area
+      neighbor_distance — distance to nearest other source (px)
+    """
+    rng = np.random.RandomState(seed)
     records = []
-    for pattern, label in [("star_*.png", "star"), ("fringe_*.png", "fringe")]:
-        files = sorted(glob.glob(os.path.join(IMAGES_DIR, pattern)))
-        for fpath in files:
-            img = cv2.imread(fpath, cv2.IMREAD_GRAYSCALE)
-            if img is None:
-                continue
-            feats = extract_features(img)
-            feats["label"] = label
-            feats["file"] = os.path.basename(fpath)
-            records.append(feats)
-    return pd.DataFrame(records)
+
+    # ── Étoile ponctuelle: small, sharp, bright, high circularity ────────────
+    for _ in range(n_per_class):
+        area        = rng.uniform(10, 55)
+        peak        = rng.uniform(150, 255)
+        circ        = rng.uniform(0.65, 0.99)
+        compactness = peak / (area + 1e-6)
+        nd          = rng.uniform(30, 250)
+        records.append([area, peak, circ, compactness, nd, "Étoile ponctuelle"])
+
+    # ── Système binaire: close neighbour within 20 px ────────────────────────
+    for _ in range(n_per_class):
+        area        = rng.uniform(12, 60)
+        peak        = rng.uniform(120, 220)
+        circ        = rng.uniform(0.40, 0.82)
+        compactness = peak / (area + 1e-6)
+        nd          = rng.uniform(3, 19)          # defining feature: close pair
+        records.append([area, peak, circ, compactness, nd, "Système binaire"])
+
+    # ── Nébuleuse étendue: large, diffuse, low circularity ───────────────────
+    for _ in range(n_per_class):
+        area        = rng.uniform(100, 500)
+        peak        = rng.uniform(40, 130)
+        circ        = rng.uniform(0.05, 0.38)
+        compactness = peak / (area + 1e-6)
+        nd          = rng.uniform(50, 250)
+        records.append([area, peak, circ, compactness, nd, "Nébuleuse étendue"])
+
+    # ── Objet compact: tiny, extremely bright, highest compactness ───────────
+    for _ in range(n_per_class):
+        area        = rng.uniform(4, 22)
+        peak        = rng.uniform(200, 255)
+        circ        = rng.uniform(0.70, 1.00)
+        compactness = peak / (area + 1e-6)
+        nd          = rng.uniform(30, 200)
+        records.append([area, peak, circ, compactness, nd, "Objet compact"])
+
+    return pd.DataFrame(records, columns=FEATURE_COLS + ["label"])
+
+
+def classify_detections(detections, model_data):
+    """
+    Re-classify a list of detection dicts using the trained model.
+    Updates 'classification' and 'confidence' in-place.
+    Returns the mutated list.
+    """
+    if not detections:
+        return detections
+
+    clf          = model_data["model"]
+    feature_cols = model_data["features"]
+
+    X = np.array([[d.get(f, 0.0) for f in feature_cols] for d in detections],
+                 dtype=np.float64)
+    preds = clf.predict(X)
+    probs = clf.predict_proba(X)
+
+    for det, cls, prob in zip(detections, preds, probs):
+        prev_cls = det.get("classification", "")
+        det["classification"] = cls
+        det["confidence"] = round(float(prob.max()), 2)
+        # Clear arabic_name if source is no longer a point star
+        if cls != "Étoile ponctuelle" and prev_cls == "Étoile ponctuelle":
+            det["arabic_name"] = ""
+
+    return detections
 
 
 def train_and_save():
-    """Train Random Forest classifier and save model."""
+    """Train Random Forest on synthetic features, save model.pkl and report."""
     os.makedirs(OUTPUT_PLOT_DIR, exist_ok=True)
+    os.makedirs(DATA_DIR, exist_ok=True)
 
-    df = load_dataset()
-    if df.empty:
-        print("No images found. Run synthetic_data.py first.")
-        return
+    df = generate_synthetic_features(n_per_class=300)
+    counts = df["label"].value_counts().to_dict()
+    print(f"Synthetic dataset: {len(df)} samples — {counts}")
 
-    print(f"Dataset: {len(df)} images ({df['label'].value_counts().to_dict()})")
-
-    feature_cols = [c for c in df.columns if c not in ("label", "file")]
-    X = df[feature_cols].values
+    X = df[FEATURE_COLS].values
     y = df["label"].values
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.3, random_state=42, stratify=y
+        X, y, test_size=0.25, random_state=42, stratify=y
     )
 
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
+    clf = RandomForestClassifier(n_estimators=150, max_depth=10, random_state=42)
     clf.fit(X_train, y_train)
 
     y_pred = clf.predict(X_test)
+    report = classification_report(y_test, y_pred, target_names=CLASS_NAMES,
+                                   zero_division=0)
     print("\n--- Classification Report ---")
-    print(classification_report(y_test, y_pred))
+    print(report)
 
-    cm = confusion_matrix(y_test, y_pred, labels=["star", "fringe"])
-    print("Confusion Matrix:")
-    print(cm)
+    with open(REPORT_PATH, "w", encoding="utf-8") as f:
+        f.write("4-Class Astrophysical Source Classifier — Random Forest\n")
+        f.write("=" * 56 + "\n\n")
+        f.write(f"Features: {', '.join(FEATURE_COLS)}\n")
+        f.write(f"Training samples: {len(X_train)}  |  Test samples: {len(X_test)}\n\n")
+        f.write(report)
+    print(f"Classification report saved to {os.path.abspath(REPORT_PATH)}")
 
-    # Feature importance plot
+    # ── Feature importance plot ───────────────────────────────────────────────
     importances = clf.feature_importances_
     idx = np.argsort(importances)[::-1]
-    fig, ax = plt.subplots(figsize=(8, 4))
-    ax.bar(range(len(feature_cols)), importances[idx], color="teal")
-    ax.set_xticks(range(len(feature_cols)))
-    ax.set_xticklabels([feature_cols[i] for i in idx], rotation=45, ha="right")
-    ax.set_title("Random Forest Feature Importances")
-    ax.set_ylabel("Importance")
+    palette = ["#3b82f6", "#22d3a0", "#f59e0b", "#ef4444", "#a78bfa"]
+
+    fig, ax = plt.subplots(figsize=(7, 3.5))
+    ax.bar(range(len(FEATURE_COLS)),
+           importances[idx],
+           color=[palette[i % len(palette)] for i in range(len(FEATURE_COLS))])
+    ax.set_xticks(range(len(FEATURE_COLS)))
+    ax.set_xticklabels([FEATURE_COLS[i] for i in idx], rotation=35, ha="right", fontsize=9)
+    ax.set_title("Feature Importances — 4-Class Source Classifier", fontsize=10, color="white")
+    ax.set_ylabel("Importance", color="white")
+    ax.set_facecolor("#0c1428")
+    fig.patch.set_facecolor("#080e1c")
+    ax.tick_params(colors="white")
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
+    for spine in ("bottom", "left"):
+        ax.spines[spine].set_color("#3d5068")
     fig.tight_layout()
     plot_path = os.path.join(OUTPUT_PLOT_DIR, "feature_importances.png")
     fig.savefig(plot_path, dpi=120, bbox_inches="tight")
     plt.close(fig)
-    print(f"Feature importance plot: {plot_path}")
+    print(f"Feature importance plot saved to {os.path.abspath(plot_path)}")
 
-    # Save model
+    # ── Save model ────────────────────────────────────────────────────────────
     with open(MODEL_PATH, "wb") as f:
-        pickle.dump({"model": clf, "features": feature_cols}, f)
+        pickle.dump({"model": clf, "features": FEATURE_COLS}, f)
     print(f"Model saved to {os.path.abspath(MODEL_PATH)}")
 
     return clf
 
 
 def main():
-    print("=== Image Classifier Training ===")
+    print("=== 4-Class Astrophysical Source Classifier ===")
     train_and_save()
 
 

@@ -1,0 +1,16 @@
+4-Class Astrophysical Source Classifier — Random Forest
+========================================================
+
+Features: area, peak_brightness, circularity, compactness, neighbor_distance
+Training samples: 900  |  Test samples: 300
+
+                   precision    recall  f1-score   support
+
+Étoile ponctuelle       1.00      1.00      1.00        75
+  Système binaire       0.91      1.00      0.96        75
+Nébuleuse étendue       1.00      1.00      1.00        75
+    Objet compact       1.00      0.91      0.95        75
+
+         accuracy                           0.98       300
+        macro avg       0.98      0.98      0.98       300
+     weighted avg       0.98      0.98      0.98       300

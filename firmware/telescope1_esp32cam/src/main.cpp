@@ -34,7 +34,6 @@
 // ─── Global objects ─────────────────────────────────────────
 MPU9250 imu(Wire, 0x68);
 VL53L0X tof;
-WiFiClient wifiClient;
 
 bool imuReady  = false;
 bool tofReady  = false;
@@ -44,7 +43,7 @@ bool wifiReady = false;
 void setupWiFi();
 void setupIMU();
 void setupTOF();
-void httpPost(const String &json);
+bool httpPost(const String &json);
 void readIMU(float &pitch, float &roll, float &yaw);
 int  readBPW34();
 void readTOF(int &skyDist, int &baselineDist);
@@ -151,32 +150,28 @@ void setupWiFi() {
     }
 }
 
-void httpPost(const String &json) {
+bool httpPost(const String& json) {
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println("[HTTP] WiFi not connected — reconnecting...");
         WiFi.reconnect();
-        delay(1000);
-        if (WiFi.status() != WL_CONNECTED) return;
-        wifiReady = true;
+        delay(3000);
+        return false;
     }
-
+    WiFiClient wifiClient;
     HTTPClient http;
     http.begin(wifiClient, SERVER_URL);
-    http.setTimeout(15000);
     http.addHeader("Content-Type", "application/json");
-
+    http.setTimeout(15000);
     int code = http.POST(json);
-    if (code > 0) {
-        Serial.print("[HTTP] POST ");
-        Serial.print(code);
-        Serial.print(" (");
-        Serial.print(json.length());
-        Serial.println(" bytes)");
+    if (code == 200) {
+        Serial.println("[HTTP] POST OK");
+        http.end();
+        return true;
     } else {
-        Serial.print("[HTTP] POST failed: ");
-        Serial.println(http.errorToString(code));
+        Serial.printf("[HTTP] POST failed: code %d\n", code);
+        http.end();
+        return false;
     }
-    http.end();
 }
 
 // =============================================================

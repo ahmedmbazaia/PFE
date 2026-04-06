@@ -95,5 +95,5 @@ def ai_detections():
 
 if __name__ == "__main__":
     logger.info("Dashboard reading CSV: %s", CSV_PATH)
-    logger.info("Dashboard image dir:   %s", IMAGE_DIR)
+    logger.info("Dashboard labeled sky: %s", LABELED_SKY_PATH)
     app.run(host="0.0.0.0", port=5001, debug=True)

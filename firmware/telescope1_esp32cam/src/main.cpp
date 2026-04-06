@@ -1,13 +1,14 @@
 // =============================================================
-//  Telescope 1 — NodeMCU ESP32 (nodemcu-32s)
-//  Sensors: MPU9250 (I2C), VL53L0X (I2C), BPW34 (analog GPIO34)
+//  Telescope 1 — NodeMCU (ESP8266)
+//  Sensors: MPU9250 (I2C SDA=D2 SCL=D1), VL53L0X (I2C), BPW34 (A0)
 //  Telemetry: WiFi HTTP POST every 2 s — no FSO, no GPS
 // =============================================================
 
 #include <Arduino.h>
 #include <Wire.h>
-#include <WiFi.h>
-#include <HTTPClient.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <WiFiClient.h>
 #include <MPU9250.h>
 #include <VL53L0X.h>
 #include <ArduinoJson.h>
@@ -19,12 +20,13 @@
 
 // ─── Pin definitions ────────────────────────────────────────
 
-// I2C bus (MPU9250 + VL53L0X share this bus)
-#define I2C_SDA  21
-#define I2C_SCL  22
+// I2C bus — ESP8266 NodeMCU default I2C pins
+// D2 = GPIO4 (SDA), D1 = GPIO5 (SCL)
+#define I2C_SDA  D2
+#define I2C_SCL  D1
 
-// BPW34 photodiode (analog input — ADC1_CH6, input-only, WiFi-safe)
-#define BPW34_PIN  34
+// BPW34 photodiode — ESP8266 has a single 10-bit ADC on A0 (0–1023)
+#define BPW34_PIN  A0
 
 // ─── Loop interval ──────────────────────────────────────────
 #define LOOP_INTERVAL_MS  2000
@@ -32,6 +34,7 @@
 // ─── Global objects ─────────────────────────────────────────
 MPU9250 imu(Wire, 0x68);
 VL53L0X tof;
+WiFiClient wifiClient;
 
 bool imuReady  = false;
 bool tofReady  = false;
@@ -56,9 +59,6 @@ void setup() {
 
     // I2C bus
     Wire.begin(I2C_SDA, I2C_SCL);
-
-    // ADC resolution (0–4095)
-    analogReadResolution(12);
 
     // Subsystem init
     setupWiFi();
@@ -116,7 +116,8 @@ void loop() {
 //  WiFi — connect and maintain
 // =============================================================
 void setupWiFi() {
-    Serial.printf("[WiFi] Connecting to %s", WIFI_SSID);
+    Serial.print("[WiFi] Connecting to ");
+    Serial.print(WIFI_SSID);
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
@@ -148,15 +149,20 @@ void httpPost(const String &json) {
     }
 
     HTTPClient http;
-    http.begin(SERVER_URL);
+    http.begin(wifiClient, SERVER_URL);
     http.setTimeout(15000);
     http.addHeader("Content-Type", "application/json");
 
     int code = http.POST(json);
     if (code > 0) {
-        Serial.printf("[HTTP] POST %d (%d bytes)\n", code, json.length());
+        Serial.print("[HTTP] POST ");
+        Serial.print(code);
+        Serial.print(" (");
+        Serial.print(json.length());
+        Serial.println(" bytes)");
     } else {
-        Serial.printf("[HTTP] POST failed: %s\n", http.errorToString(code).c_str());
+        Serial.print("[HTTP] POST failed: ");
+        Serial.println(http.errorToString(code));
     }
     http.end();
 }
@@ -168,7 +174,9 @@ void setupIMU() {
     Serial.print("[IMU] Initializing MPU9250... ");
     int status = imu.begin();
     if (status < 0) {
-        Serial.printf("FAILED (error %d)\n", status);
+        Serial.print("FAILED (error ");
+        Serial.print(status);
+        Serial.println(")");
         imuReady = false;
     } else {
         Serial.println("OK");
@@ -200,7 +208,7 @@ void readIMU(float &pitch, float &roll, float &yaw) {
 }
 
 // =============================================================
-//  BPW34 — light intensity (analog 0–4095)
+//  BPW34 — light intensity (analog 0–1023, 10-bit ADC)
 // =============================================================
 int readBPW34() {
     return analogRead(BPW34_PIN);

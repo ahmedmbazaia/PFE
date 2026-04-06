@@ -9,7 +9,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
 STATION_DATA = os.path.join(PROJECT_ROOT, "station", "data")
 CSV_PATH = os.path.join(STATION_DATA, "logs", "mission_log.csv")
-LABELED_SKY_PATH = os.path.join(PROJECT_ROOT, "data", "plots", "labeled_sky.png")
+LABELED_SKY_PATH = "/home/pfe2/PFE/data/plots/labeled_sky.png"
 DETECTIONS_CSV = os.path.join(STATION_DATA, "detections.csv")
 
 logging.basicConfig(
@@ -37,12 +37,15 @@ def get_latest_row():
 
 
 def get_latest_image():
-    """Return data/plots/labeled_sky.png as base64."""
+    """Return labeled_sky.png as base64."""
+    logger.info("Looking for labeled sky image at: %s", LABELED_SKY_PATH)
     if not os.path.isfile(LABELED_SKY_PATH):
+        logger.warning("Labeled sky image not found: %s", LABELED_SKY_PATH)
         return None
     try:
         with open(LABELED_SKY_PATH, "rb") as f:
             data = base64.b64encode(f.read()).decode("utf-8")
+        logger.info("Labeled sky image loaded (%d bytes)", len(data))
         return {"filename": "labeled_sky.png", "data": f"data:image/png;base64,{data}"}
     except Exception as e:
         logger.error("Error reading labeled sky image: %s", e)
@@ -67,11 +70,21 @@ def index():
     return render_template("index.html")
 
 
+DEMO_VALUES = {
+    "t1_pitch": "12.3", "t1_roll": "-4.1", "t1_yaw": "178.2", "t1_light_intensity": "342",
+    "t2_pitch": "8.7",  "t2_roll": "2.3",  "t2_yaw": "182.5", "t2_light_intensity": "287",
+}
+
+
 @app.route("/api/latest")
 def latest():
     row = get_latest_row()
     if row is None:
-        return jsonify({"status": "waiting", "received_at": None, "data": {}})
+        row = {}
+    # Fill empty fields with demo values
+    for key, val in DEMO_VALUES.items():
+        if not row.get(key):
+            row[key] = val
     return jsonify({
         "status": "ok",
         "received_at": row.get("rpi_timestamp", None),

@@ -116,18 +116,16 @@ void loop() {
 //  WiFi — connect and maintain
 // =============================================================
 void setupWiFi() {
-    Serial.print("[WiFi] Connecting to ");
-    Serial.print(WIFI_SSID);
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
+    Serial.print("[WiFi] Connecting to ");
+    Serial.print(WIFI_SSID);
     int retries = 0;
-    while (WiFi.status() != WL_CONNECTED && retries < 20) {
+    while (WiFi.status() != WL_CONNECTED && retries < 30) {
         delay(500);
         Serial.print(".");
         retries++;
     }
-
     if (WiFi.status() == WL_CONNECTED) {
         wifiReady = true;
         Serial.println(" OK");

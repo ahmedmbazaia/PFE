@@ -431,6 +431,12 @@
       margin-top: 6px;
     }
 
+    .na-val {
+      color: var(--text3);
+      font-style: italic;
+      font-size: 0.78rem;
+    }
+
     .ts-val {
       font-size: 0.62rem;
       color: var(--text3);
@@ -742,6 +748,12 @@
     return isNaN(n) ? String(v) : n.toFixed(d);
   };
   const fvRaw = v => (v === null || v === undefined || v === '') ? '—' : String(v);
+  const na = (v, fmt, decimals) => {
+    if (v === null || v === undefined || v === '') return '<span class="na-val">N/A</span>';
+    const n = Number(v);
+    if (isNaN(n)) return '<span class="na-val">N/A</span>';
+    return fmt ? n.toFixed(decimals) + fmt : n.toFixed(decimals);
+  };
 
   // ── Mission elapsed time ──────────────────────────────────────
   const MET_START = Date.now();
@@ -936,8 +948,8 @@
         $('t1-light').textContent = fv(d.t1_light_intensity, 0);
         const t1Pct = Math.min(100, (Number(d.t1_light_intensity)||0) / 10);
         $('t1-light-bar').style.width = t1Pct + '%';
-        $('t1-sky').textContent  = fv(d.t1_sky_distance_mm, 1);
-        $('t1-base').textContent = fv(d.t1_baseline_distance_mm, 1);
+        $('t1-sky').innerHTML  = na(d.t1_sky_distance_mm, ' mm', 1);
+        $('t1-base').innerHTML = na(d.t1_baseline_distance_mm, ' mm', 1);
         $('t1-ts').textContent   = fvRaw(d.t1_timestamp);
 
         // T2
@@ -949,12 +961,12 @@
         $('t2-light').textContent = fv(d.t2_light_intensity, 0);
         const t2Pct = Math.min(100, (Number(d.t2_light_intensity)||0) / 10);
         $('t2-light-bar').style.width = t2Pct + '%';
-        $('t2-sky').textContent  = fv(d.t2_sky_distance_mm, 1);
-        $('t2-base').textContent = fv(d.t2_baseline_distance_mm, 1);
-        $('t2-lat').textContent  = fv(d.t2_lat, 5);
-        $('t2-lon').textContent  = fv(d.t2_lon, 5);
-        $('t2-alt').textContent  = fv(d.t2_altitude, 1);
-        $('t2-ts').textContent   = fvRaw(d.t2_timestamp);
+        $('t2-sky').innerHTML  = na(d.t2_sky_distance_mm, ' mm', 1);
+        $('t2-base').innerHTML = na(d.t2_baseline_distance_mm, ' mm', 1);
+        $('t2-lat').innerHTML  = na(d.t2_lat, '', 5);
+        $('t2-lon').innerHTML  = na(d.t2_lon, '', 5);
+        $('t2-alt').innerHTML  = na(d.t2_altitude, ' m', 1);
+        $('t2-ts').textContent = fvRaw(d.t2_timestamp);
 
         // Interferometry
         const b1 = Number(d.t1_baseline_distance_mm) || 0;

@@ -81,9 +81,10 @@ def latest():
     row = get_latest_row()
     if row is None:
         row = {}
-    # Fill empty fields with demo values
+    # Fill missing or zero fields with demo values
     for key, val in DEMO_VALUES.items():
-        if not row.get(key):
+        v = row.get(key, "")
+        if v == "" or v is None or v == "0" or v == 0:
             row[key] = val
     return jsonify({
         "status": "ok",

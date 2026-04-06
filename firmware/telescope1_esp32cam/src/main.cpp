@@ -60,6 +60,20 @@ void setup() {
     // I2C bus
     Wire.begin(I2C_SDA, I2C_SCL);
 
+    // WiFi scan before connecting
+    WiFi.mode(WIFI_STA);
+    WiFi.disconnect();
+    delay(100);
+    int n = WiFi.scanNetworks();
+    Serial.println("[WiFi] Networks found:");
+    for (int i = 0; i < n; i++) {
+        Serial.print("  ");
+        Serial.print(WiFi.SSID(i));
+        Serial.print(" (");
+        Serial.print(WiFi.RSSI(i));
+        Serial.println(" dBm)");
+    }
+
     // Subsystem init
     setupWiFi();
     setupIMU();

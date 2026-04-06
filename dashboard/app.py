@@ -9,7 +9,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
 STATION_DATA = os.path.join(PROJECT_ROOT, "station", "data")
 CSV_PATH = os.path.join(STATION_DATA, "logs", "mission_log.csv")
-IMAGE_DIR = os.path.join(STATION_DATA, "images")
+LABELED_SKY_PATH = os.path.join(PROJECT_ROOT, "data", "plots", "labeled_sky.png")
 DETECTIONS_CSV = os.path.join(STATION_DATA, "detections.csv")
 
 logging.basicConfig(
@@ -37,25 +37,15 @@ def get_latest_row():
 
 
 def get_latest_image():
-    """Return the most recently modified image from IMAGE_DIR as base64."""
-    if not os.path.isdir(IMAGE_DIR):
+    """Return data/plots/labeled_sky.png as base64."""
+    if not os.path.isfile(LABELED_SKY_PATH):
         return None
     try:
-        files = [
-            os.path.join(IMAGE_DIR, f)
-            for f in os.listdir(IMAGE_DIR)
-            if f.lower().endswith((".jpg", ".jpeg", ".png"))
-        ]
-        if not files:
-            return None
-        latest = max(files, key=os.path.getmtime)
-        with open(latest, "rb") as f:
+        with open(LABELED_SKY_PATH, "rb") as f:
             data = base64.b64encode(f.read()).decode("utf-8")
-        ext = os.path.splitext(latest)[1].lstrip(".").lower()
-        mime = "jpeg" if ext in ("jpg", "jpeg") else ext
-        return {"filename": os.path.basename(latest), "data": f"data:image/{mime};base64,{data}"}
+        return {"filename": "labeled_sky.png", "data": f"data:image/png;base64,{data}"}
     except Exception as e:
-        logger.error("Error reading image: %s", e)
+        logger.error("Error reading labeled sky image: %s", e)
     return None
 
 

@@ -1,53 +1,30 @@
 // =============================================================
-//  Telescope 1 — ESP32-CAM 
-//  Sensors: MPU9250, BPW34, VL53L0X, SX1278 LoRa, WiFi/NTP
+//  Telescope 1 — NodeMCU ESP32 (nodemcu-32s)
+//  Sensors: MPU9250 (I2C), VL53L0X (I2C), BPW34 (analog GPIO34)
+//  Telemetry: WiFi HTTP POST every 2 s — no FSO, no GPS
 // =============================================================
 
 #include <Arduino.h>
 #include <Wire.h>
-#include <SPI.h>
 #include <WiFi.h>
-#include <WiFiUdp.h>
-#include <NTPClient.h>
-#include <LoRa.h>
+#include <HTTPClient.h>
 #include <MPU9250.h>
 #include <VL53L0X.h>
 #include <ArduinoJson.h>
 
-// ─── Feature flags ──────────────────────────────────────────
-#define MOTOR_ENABLED   false
-#define FSO_ENABLED     false
-#define CAMERA_ENABLED  false
-
-// ─── WiFi credentials (NTP only) ────────────────────────────
-const char* WIFI_SSID     = "YOUR_SSID";
-const char* WIFI_PASSWORD = "YOUR_PASSWORD";
+// ─── WiFi + server ──────────────────────────────────────────
+#define WIFI_SSID      "TT_F590"
+#define WIFI_PASSWORD  "upi492l8ok"
+#define SERVER_URL     "http://192.168.1.18:5000/telemetry"
 
 // ─── Pin definitions ────────────────────────────────────────
 
 // I2C bus (MPU9250 + VL53L0X share this bus)
-#define I2C_SDA  14
-#define I2C_SCL  15
+#define I2C_SDA  21
+#define I2C_SCL  22
 
-// DRV8825 stepper driver
-#define STEPPER_STEP_PIN   12
-#define STEPPER_DIR_PIN    13
-#define STEPPER_ENABLE_PIN  2
-
-// BPW34 photodiode (analog input)
-#define BPW34_PIN  33   // ADC1_CH5 — safe to use alongside WiFi
-
-// SX1278 LoRa (SPI)
-#define LORA_SCK   18
-#define LORA_MISO  19
-#define LORA_MOSI  23
-#define LORA_NSS    5
-#define LORA_RST   16
-#define LORA_DIO0   4
-
-// LoRa radio parameters
-#define LORA_FREQUENCY  433E6   // 433 MHz band
-#define LORA_TX_POWER   17      // dBm
+// BPW34 photodiode (analog input — ADC1_CH6, input-only, WiFi-safe)
+#define BPW34_PIN  34
 
 // ─── Loop interval ──────────────────────────────────────────
 #define LOOP_INTERVAL_MS  2000
@@ -55,23 +32,19 @@ const char* WIFI_PASSWORD = "YOUR_PASSWORD";
 // ─── Global objects ─────────────────────────────────────────
 MPU9250 imu(Wire, 0x68);
 VL53L0X tof;
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);
 
-// Sensor-ready flags
 bool imuReady  = false;
 bool tofReady  = false;
-bool loraReady = false;
+bool wifiReady = false;
 
 // ─── Forward declarations ───────────────────────────────────
 void setupWiFi();
 void setupIMU();
 void setupTOF();
-void setupLoRa();
+void httpPost(const String &json);
 void readIMU(float &pitch, float &roll, float &yaw);
 int  readBPW34();
 void readTOF(int &skyDist, int &baselineDist);
-void sendLoRa(const String &json);
 
 // =============================================================
 //  SETUP
@@ -84,21 +57,13 @@ void setup() {
     // I2C bus
     Wire.begin(I2C_SDA, I2C_SCL);
 
-    // Stepper pins (configured even if motor disabled)
-    pinMode(STEPPER_STEP_PIN,   OUTPUT);
-    pinMode(STEPPER_DIR_PIN,    OUTPUT);
-    pinMode(STEPPER_ENABLE_PIN, OUTPUT);
-    digitalWrite(STEPPER_ENABLE_PIN, HIGH);  // HIGH = disabled on DRV8825
-
-    // Photodiode analog input
-    analogReadResolution(12);  // 0–4095
-    pinMode(BPW34_PIN, INPUT);
+    // ADC resolution (0–4095)
+    analogReadResolution(12);
 
     // Subsystem init
     setupWiFi();
     setupIMU();
     setupTOF();
-    setupLoRa();
 
     Serial.println("===== Setup complete =====\n");
 }
@@ -108,9 +73,12 @@ void setup() {
 // =============================================================
 void loop() {
     static unsigned long lastRun = 0;
+    static uint32_t packetCounter = 0;
     unsigned long now = millis();
+
     if (now - lastRun < LOOP_INTERVAL_MS) return;
     lastRun = now;
+    packetCounter++;
 
     // 1. Read IMU
     float pitch = 0, roll = 0, yaw = 0;
@@ -119,56 +87,78 @@ void loop() {
     // 2. Read photodiode
     int lightIntensity = readBPW34();
 
-    // 3. Read VL53L0X (two scheduled readings)
+    // 3. Read VL53L0X (sky + baseline)
     int skyDist = 0, baselineDist = 0;
     readTOF(skyDist, baselineDist);
 
-    // 4. Get NTP timestamp
-    timeClient.update();
-    String timestamp = timeClient.getFormattedTime();
-
-    // 5. Build JSON payload
+    // 4. Build JSON payload
     JsonDocument doc;
-    doc["node"]                = "T1";
-    doc["timestamp"]           = timestamp;
-    doc["pitch"]               = pitch;
-    doc["roll"]                = roll;
-    doc["yaw"]                 = yaw;
-    doc["light_intensity"]     = lightIntensity;
-    doc["sky_distance_mm"]     = skyDist;
-    doc["baseline_distance_mm"]= baselineDist;
-    doc["motor_angle"]         = 0;
+    doc["node"]                  = "T1";
+    doc["counter"]               = packetCounter;
+    doc["timestamp"]             = millis();
+    doc["pitch"]                 = pitch;
+    doc["roll"]                  = roll;
+    doc["yaw"]                   = yaw;
+    doc["light_intensity"]       = lightIntensity;
+    doc["sky_distance_mm"]       = skyDist;
+    doc["baseline_distance_mm"]  = baselineDist;
+    doc["motor_angle"]           = 0;
 
     String json;
     serializeJson(doc, json);
-
     Serial.println(json);
 
-    // 6. Send via LoRa
-    sendLoRa(json);
+    // 5. HTTP POST to central station
+    httpPost(json);
 }
 
 // =============================================================
-//  WiFi — NTP time sync only
+//  WiFi — connect and maintain
 // =============================================================
 void setupWiFi() {
     Serial.printf("[WiFi] Connecting to %s", WIFI_SSID);
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-    unsigned long start = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
+    int retries = 0;
+    while (WiFi.status() != WL_CONNECTED && retries < 20) {
         delay(500);
         Serial.print(".");
+        retries++;
     }
 
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf(" connected (%s)\n", WiFi.localIP().toString().c_str());
-        timeClient.begin();
-        timeClient.update();
+        wifiReady = true;
+        Serial.println(" OK");
+        Serial.print("[WiFi] IP: ");
+        Serial.println(WiFi.localIP());
     } else {
-        Serial.println(" FAILED — NTP unavailable");
+        wifiReady = false;
+        Serial.println(" FAILED");
     }
+}
+
+void httpPost(const String &json) {
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("[HTTP] WiFi not connected — reconnecting...");
+        WiFi.reconnect();
+        delay(1000);
+        if (WiFi.status() != WL_CONNECTED) return;
+        wifiReady = true;
+    }
+
+    HTTPClient http;
+    http.begin(SERVER_URL);
+    http.setTimeout(15000);
+    http.addHeader("Content-Type", "application/json");
+
+    int code = http.POST(json);
+    if (code > 0) {
+        Serial.printf("[HTTP] POST %d (%d bytes)\n", code, json.length());
+    } else {
+        Serial.printf("[HTTP] POST failed: %s\n", http.errorToString(code).c_str());
+    }
+    http.end();
 }
 
 // =============================================================
@@ -213,12 +203,11 @@ void readIMU(float &pitch, float &roll, float &yaw) {
 //  BPW34 — light intensity (analog 0–4095)
 // =============================================================
 int readBPW34() {
-    int value = analogRead(BPW34_PIN);
-    return value;
+    return analogRead(BPW34_PIN);
 }
 
 // =============================================================
-//  VL53L0X — two distance readings (sky + baseline to T2)
+//  VL53L0X — sky distance + baseline to T2
 //  Single sensor, two sequential measurements
 // =============================================================
 void setupTOF() {
@@ -240,52 +229,19 @@ void readTOF(int &skyDist, int &baselineDist) {
         return;
     }
 
-    // Reading 1: distance to sky (LED matrix above)
+    // Reading 1: distance to sky
     skyDist = tof.readRangeSingleMillimeters();
     if (tof.timeoutOccurred()) {
         Serial.println("[TOF] Sky reading timeout");
         skyDist = 0;
     }
 
-    // Small delay between readings for sensor settling
-    delay(50);
+    delay(50);  // settling time between readings
 
-    // Reading 2: distance to T2 (baseline measurement)
+    // Reading 2: baseline distance to T2
     baselineDist = tof.readRangeSingleMillimeters();
     if (tof.timeoutOccurred()) {
         Serial.println("[TOF] Baseline reading timeout");
         baselineDist = 0;
     }
-}
-
-// =============================================================
-//  SX1278 LoRa — transmit JSON packets
-// =============================================================
-void setupLoRa() {
-    Serial.print("[LoRa] Initializing SX1278... ");
-
-    SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_NSS);
-    LoRa.setPins(LORA_NSS, LORA_RST, LORA_DIO0);
-
-    if (!LoRa.begin(LORA_FREQUENCY)) {
-        Serial.println("FAILED");
-        loraReady = false;
-    } else {
-        LoRa.setTxPower(LORA_TX_POWER);
-        Serial.println("OK");
-        loraReady = true;
-    }
-}
-
-void sendLoRa(const String &json) {
-    if (!loraReady) {
-        Serial.println("[LoRa] Not available — skipping send");
-        return;
-    }
-
-    LoRa.beginPacket();
-    LoRa.print(json);
-    LoRa.endPacket();
-
-    Serial.println("[LoRa] Packet sent");
 }

@@ -1,0 +1,7 @@
+dataset/*.npy
+dataset/plots/
+models/cnn_best.keras
+models/*.tflite
+__pycache__/
+*.pyc
+*.pkl
